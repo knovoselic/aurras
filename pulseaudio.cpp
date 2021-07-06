@@ -3,17 +3,17 @@
 PulseAudio::PulseAudio()
 {
     pa_operation *op;
-    // Create a mainloop API and connection to the default server
+    // Create a threaded mainloop API and a connection to the default server
     mainloop = pa_threaded_mainloop_new();
     Q_ASSERT(pa_threaded_mainloop_start(mainloop) == 0);
-
     mainloop_api = pa_threaded_mainloop_get_api(mainloop);
     context = pa_context_new(mainloop_api, "Aurras");
 
+    qDebug() << "Connecting to PulseAudio server...";
     pa_threaded_mainloop_lock(mainloop);
     pa_context_set_state_callback(context, pa_state_cb, mainloop);
     Q_ASSERT(pa_context_connect(context, NULL, PA_CONTEXT_NOFLAGS, NULL) == 0);
-    // Here we're waiting for pa_context to connecto to the running server. Once that happenes, the
+    // Here we're waiting for pa_context to connec to the running server. Once that happenes, the
     // callback function will go into PA_CONTEXT_READY state and will send a signal to which
     // unblocks this waiting call.
     // Not sure if waiting inside of a while loop is needed for context_connect, but we are doing
@@ -46,20 +46,35 @@ void PulseAudio::pa_state_cb(pa_context *c, void *userdata) {
     pa_threaded_mainloop *m = static_cast<pa_threaded_mainloop*>(userdata);
 
     state = pa_context_get_state(c);
-    qDebug() << __FUNCTION__ << QThread::currentThreadId() << state;
     switch  (state) {
-    // There are more states than we care about, we'll just ignore them
-    default:
+    case PA_CONTEXT_UNCONNECTED:
+        qDebug() << "PulseAudio state change: PA_CONTEXT_UNCONNECTED";
+        break;
+    case PA_CONTEXT_CONNECTING:
+        qDebug() << "PulseAudio state change: PA_CONTEXT_CONNECTING";
+        break;
+    case PA_CONTEXT_AUTHORIZING:
+        qDebug() << "PulseAudio state change: PA_CONTEXT_AUTHORIZING";
+        break;
+    case PA_CONTEXT_SETTING_NAME:
+        qDebug() << "PulseAudio state change: PA_CONTEXT_SETTING_NAME";
+        break;
+    case PA_CONTEXT_READY:
+        qDebug() << "PulseAudio state change: PA_CONTEXT_READY";
+        qDebug() << "Successfully connected to PulseAudio server";
+        pa_threaded_mainloop_signal(m, 0);
         break;
     case PA_CONTEXT_FAILED:
+        qDebug() << "PulseAudio state change: PA_CONTEXT_FAILED";
         Q_ASSERT_X(false, __FUNCTION__, "Connection to PulseAudio has failed.");
         break;
     case PA_CONTEXT_TERMINATED:
-        qDebug() << "PulseAudio connection has been terminated.";
+        qDebug() << "PulseAudio state change: PA_CONTEXT_TERMINATED";
         break;
-    case PA_CONTEXT_READY:
-        qDebug() << "PulseAudio connection is ready.";
-        pa_threaded_mainloop_signal(m, 0);
+    default:
+        Q_ASSERT_X(false,
+                   __FUNCTION__,
+                   QString("We should never reach this state: %1!").arg(state).toStdString().c_str());
         break;
     }
 }
@@ -69,12 +84,9 @@ void PulseAudio::pa_subscribe_cb(pa_context *c, pa_subscription_event_type_t t, 
 
     PulseAudio *instance = static_cast<PulseAudio *>(userdata);
 
-    qDebug() << __FUNCTION__ << QThread::currentThreadId();
-    // interesting, will get source IDX and when has happened (new source, removed source or property change)
-    qDebug() << "got something" << idx;
-
     Q_ASSERT_X((t & PA_SUBSCRIPTION_EVENT_FACILITY_MASK) == PA_SUBSCRIPTION_EVENT_SOURCE,
-               __FUNCTION__, "Received unexpected event");
+               __FUNCTION__,
+               "Received unexpected event");
 
     switch((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK)) {
     case PA_SUBSCRIPTION_EVENT_NEW:
@@ -106,8 +118,7 @@ void PulseAudio::pa_subscribe_cb(pa_context *c, pa_subscription_event_type_t t, 
 }
 
 // pa_mainloop will call this function when it's ready to tell us about a source.
-// Since we're not threading, there's no need for mutexes on the devicelist
-// structure
+// We probably need mutexes on the inputDevices structure
 void PulseAudio::pa_source_list_cb(pa_context *c, const pa_source_info *l, int eol, void *userdata) {
     Q_UNUSED(c);
 
@@ -130,11 +141,9 @@ void PulseAudio::pa_source_list_cb(pa_context *c, const pa_source_info *l, int e
 void PulseAudio::pa_mute_cb(pa_context *c, int success, void *userdata) {
     Q_UNUSED(c);
 
-    qDebug() << __FUNCTION__ << QThread::currentThreadId();
     Q_ASSERT(success);
 
     PulseAudio *instance = static_cast<PulseAudio*>(userdata);
-
     pa_threaded_mainloop_signal(instance->mainloop, 0);
 }
 
