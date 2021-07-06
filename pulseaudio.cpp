@@ -180,11 +180,3 @@ void PulseAudio::pa_update_source_list_blocking() {
     pa_operation_unref(op);
     pa_threaded_mainloop_unlock(mainloop);
 }
-
-pa_devicelist_t* PulseAudio::getInputDevices() {
-    return inputDevices;
-}
-
-uint8_t PulseAudio::getInputDeviceCount() const {
-    return inputDeviceCount;
-}

@@ -54,7 +54,6 @@ int main(int argc, char *argv[])
     xhkConfig *hk_config = xhkInit(NULL);
     xhkBindKey(hk_config, 0, XK_F11, 0, xhkKeyPress, &keyboard_shortcut_pressed, 0, 0, 0);
 
-    qDebug() <<  pa.getInputDeviceCount();
     // get all recording devices into a known state (muted)
     keyboard_shortcut_pressed(xhkEvent(), NULL, NULL, NULL);
 

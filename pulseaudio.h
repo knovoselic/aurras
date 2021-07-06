@@ -19,9 +19,6 @@ public:
     PulseAudio();
     ~PulseAudio();
 
-    pa_devicelist_t* getInputDevices();
-    uint8_t getInputDeviceCount() const;
-
     void setInputDeviceMuteByIndex(uint32_t index, int mute);
     void setAllInputDevicesMute(int mute);
 
