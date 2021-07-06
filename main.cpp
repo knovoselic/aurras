@@ -8,25 +8,6 @@
 #include "pulseaudio.h"
 #include "xhklib.h"
 
-void logToStderr(QtMsgType type, const QMessageLogContext& context,
-                 const QString& msg)
-{
-    Q_UNUSED(type);
-    Q_UNUSED(context);
-
-    // now output to debugger console
-#ifdef Q_OS_WIN
-    OutputDebugString(msg.toStdWString().c_str());
-#else
-    if (type == QtMsgType::QtWarningMsg || type == QtMsgType::QtCriticalMsg || type == QtMsgType::QtFatalMsg) {
-        std::cerr << msg.toStdString() << std::endl << std::flush;
-    } else {
-        std::cout << msg.toStdString() << std::endl << std::flush;
-    }
-
-#endif
-}
-
 PulseAudio pa;
 int mute = 0;
 
@@ -63,7 +44,6 @@ void keyboard_shortcut_pressed(xhkEvent e, void *a1, void *a2, void *a3) {
 
 int main(int argc, char *argv[])
 {
-    qInstallMessageHandler(&logToStderr);
     qDebug() << "Main thread" << QThread::currentThreadId();
 
 #if 1
