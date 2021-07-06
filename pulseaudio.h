@@ -5,17 +5,19 @@
 #include <QDebug>
 #include <QThread> // to remove
 
-typedef struct pa_devicelist {
-    char name[512];
+struct PulseAudioDevice {
+    QString name; // not really necessary, but makes debugging easier
     uint32_t index;
-    int mute;
-} pa_devicelist_t;
+
+    PulseAudioDevice(const char *name, uint32_t index) {
+        this->name = QString(name);
+        this->index = index;
+    }
+};
 
 class PulseAudio
 {
 public:
-    static const int MAX_DEVICES = 64;
-
     PulseAudio();
     ~PulseAudio();
 
@@ -27,19 +29,17 @@ private:
     static void pa_source_list_cb(pa_context *c, const pa_source_info *l, int eol, void *userdata);
     static void pa_subscribe_cb(pa_context *c, pa_subscription_event_type_t t, uint32_t idx, void *userdata);
     static void pa_mute_cb(pa_context *c, int success, void *userdata);
-    pa_operation* pa_update_source_list();
-    void pa_update_source_list_blocking();
+    void pa_update_source_list();
 
 #ifdef QT_DEBUG
     void print_source_list() {
-        for(int i = 0; i < inputDeviceCount; ++i) {
-            qDebug() << inputDevices[i].index << inputDevices[i].name << inputDevices[i].mute;
+        for(int i = 0; i < sources.size(); ++i) {
+            qDebug() << sources[i].index << sources[i].name;
         }
     }
 #endif
 
-    pa_devicelist_t inputDevices[MAX_DEVICES];
-    uint8_t inputDeviceCount = 0;
+    QList<PulseAudioDevice> sources;
     pa_threaded_mainloop *mainloop;
     pa_mainloop_api *mainloop_api;
     pa_context *context;

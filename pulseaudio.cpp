@@ -30,7 +30,7 @@ PulseAudio::PulseAudio()
     pa_operation_unref(op);
     pa_threaded_mainloop_unlock(mainloop);
 
-    pa_update_source_list_blocking();
+    pa_update_source_list();
 }
 
 PulseAudio::~PulseAudio()
@@ -93,7 +93,8 @@ void PulseAudio::pa_subscribe_cb(pa_context *c, pa_subscription_event_type_t t, 
     case PA_SUBSCRIPTION_EVENT_REMOVE: {
         // TODO(Kristijan): We should probably automatically update mute state of the new device
         qDebug() << "source add/remove";
-        pa_operation *op = instance->pa_update_source_list();
+        instance->sources.clear();
+        pa_operation *op = pa_context_get_source_info_list(instance->context, pa_source_list_cb, instance);
         Q_ASSERT(op);
         pa_operation_unref(op);
         break;
@@ -101,15 +102,15 @@ void PulseAudio::pa_subscribe_cb(pa_context *c, pa_subscription_event_type_t t, 
     case PA_SUBSCRIPTION_EVENT_CHANGE: {
         qDebug() << "source property changed";
         int i;
-        for(i = 0; i < instance->inputDeviceCount; ++i) {
-            if (instance->inputDevices[i].index == idx) break;
+        for(i = 0; i < instance->sources.size(); ++i) {
+            if (instance->sources[i].index == idx) break;
         }
-        qDebug() << "Old value:" << instance->inputDevices[i].mute;
-        pa_operation *op = pa_context_set_source_mute_by_index(c, idx,
-                                                               instance->inputDevices[i].mute,
-                                                               NULL, NULL);
-        Q_ASSERT(op);
-        pa_operation_unref(op);
+        // TODO(Kristijan): Reimplement this functionality
+//        pa_operation *op = pa_context_set_source_mute_by_index(c, idx,
+//                                                               instance->inputDevices[i].mute,
+//                                                               NULL, NULL);
+//        Q_ASSERT(op);
+//        pa_operation_unref(op);
         break;
     }
     }
@@ -119,7 +120,7 @@ void PulseAudio::pa_subscribe_cb(pa_context *c, pa_subscription_event_type_t t, 
 
 // pa_mainloop will call this function when it's ready to tell us about a source.
 // We probably need mutexes on the inputDevices structure
-void PulseAudio::pa_source_list_cb(pa_context *c, const pa_source_info *l, int eol, void *userdata) {
+void PulseAudio::pa_source_list_cb(pa_context *c, const pa_source_info *info, int eol, void *userdata) {
     Q_UNUSED(c);
 
     PulseAudio *instance = static_cast<PulseAudio*>(userdata);
@@ -131,11 +132,7 @@ void PulseAudio::pa_source_list_cb(pa_context *c, const pa_source_info *l, int e
         return;
     }
 
-    strncpy(instance->inputDevices[instance->inputDeviceCount].name, l->name, sizeof(instance->inputDevices[0].name) / sizeof(char) - 1);
-    instance->inputDevices[instance->inputDeviceCount].index = l->index;
-    instance->inputDevices[instance->inputDeviceCount].mute = l->mute;
-
-    ++instance->inputDeviceCount;
+    instance->sources.append(PulseAudioDevice(info->name, info->index));
 }
 
 void PulseAudio::pa_mute_cb(pa_context *c, int success, void *userdata) {
@@ -161,27 +158,16 @@ void PulseAudio::setInputDeviceMuteByIndex(uint32_t index, int mute) {
 }
 
 void PulseAudio::setAllInputDevicesMute(int mute) {
-    for(int i = 0; i < inputDeviceCount; ++i) {
-        // we need to update our own sink mute state before starting the PA operations
-        // otherwise our change callback will compare the new mute state with our old, outdated
-        // state and revert the change
-        inputDevices[i].mute = mute;
-        setInputDeviceMuteByIndex(inputDevices[i].index, mute);
+    for(auto device : sources) {
+        setInputDeviceMuteByIndex(device.index, mute);
     }
 }
 
-pa_operation* PulseAudio::pa_update_source_list() {
-    memset(inputDevices, 0, sizeof(pa_devicelist_t) * MAX_DEVICES);
-    inputDeviceCount = 0;
-
-    return pa_context_get_source_info_list(context, pa_source_list_cb, this);
-}
-
-void PulseAudio::pa_update_source_list_blocking() {
+void PulseAudio::pa_update_source_list() {
     pa_operation *op;
 
     pa_threaded_mainloop_lock(mainloop);
-    op = pa_update_source_list();
+    op = pa_context_get_source_info_list(context, pa_source_list_cb, this);
     Q_ASSERT(op);
     while (pa_operation_get_state(op) == PA_OPERATION_RUNNING) {
         pa_threaded_mainloop_wait(mainloop);
