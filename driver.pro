@@ -3,7 +3,7 @@ QT -= gui
 CONFIG += c++11 console
 CONFIG -= app_bundle
 
-unix: LIBS += -lpulse
+unix: LIBS += -lpulse -lX11
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -11,7 +11,8 @@ unix: LIBS += -lpulse
 
 SOURCES += \
         main.cpp \
-        pulseaudio.cpp
+        pulseaudio.cpp \
+        xhklib.cpp
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
@@ -19,4 +20,5 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 HEADERS += \
-    pulseaudio.h
+    pulseaudio.h \
+    xhklib.h
