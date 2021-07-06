@@ -13,7 +13,7 @@ PulseAudio::PulseAudio()
     pa_threaded_mainloop_lock(mainloop);
     pa_context_set_state_callback(context, pa_state_cb, mainloop);
     Q_ASSERT(pa_context_connect(context, NULL, PA_CONTEXT_NOFLAGS, NULL) == 0);
-    // Here we're waiting for pa_context to connec to the running server. Once that happenes, the
+    // Here we're waiting for pa_context to connect to the running server. Once that happenes, the
     // callback function will go into PA_CONTEXT_READY state and will send a signal to which
     // unblocks this waiting call.
     // Not sure if waiting inside of a while loop is needed for context_connect, but we are doing
@@ -91,8 +91,10 @@ void PulseAudio::pa_subscribe_cb(pa_context *c, pa_subscription_event_type_t t, 
     switch((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK)) {
     case PA_SUBSCRIPTION_EVENT_NEW:
     case PA_SUBSCRIPTION_EVENT_REMOVE: {
-        // TODO(Kristijan): We should probably automatically update mute state of the new device
-        qDebug() << "source add/remove";
+        // TODO(Kristijan): We probably need a mutex for this
+
+        // Instead of removing and adding specific device, for now we'll be lazy and just reload the whole list
+        qDebug() << "Source has been added or removed. Updating device list...";
         instance->sources.clear();
         pa_operation *op = pa_context_get_source_info_list(instance->context, pa_source_list_cb, instance);
         Q_ASSERT(op);
@@ -100,22 +102,22 @@ void PulseAudio::pa_subscribe_cb(pa_context *c, pa_subscription_event_type_t t, 
         break;
     }
     case PA_SUBSCRIPTION_EVENT_CHANGE: {
-        qDebug() << "source property changed";
-        int i;
-        for(i = 0; i < instance->sources.size(); ++i) {
-            if (instance->sources[i].index == idx) break;
-        }
-        // TODO(Kristijan): Reimplement this functionality
-//        pa_operation *op = pa_context_set_source_mute_by_index(c, idx,
-//                                                               instance->inputDevices[i].mute,
-//                                                               NULL, NULL);
-//        Q_ASSERT(op);
-//        pa_operation_unref(op);
+        // Unfortunately we do not know which property of the device has been changed, so we'll just
+        // set this device's mute state to match the global mute state. In some cases this will not
+        // be needed (the mute states will match), but it's less expansive than querying all information
+        // about the device and then muting it if needed
+        qDebug() << "Source property changed";
+        pa_operation *op = pa_context_set_source_mute_by_index(c, idx, instance->masterMute, NULL, NULL);
+        Q_ASSERT(op);
+        pa_operation_unref(op);
         break;
     }
+    default:
+        Q_ASSERT_X(false,
+                   __FUNCTION__,
+                   QString("We should never reach this state: %1!").arg(t).toStdString().c_str());
+        break;
     }
-
-    qDebug();
 }
 
 // pa_mainloop will call this function when it's ready to tell us about a source.
@@ -144,23 +146,20 @@ void PulseAudio::pa_mute_cb(pa_context *c, int success, void *userdata) {
     pa_threaded_mainloop_signal(instance->mainloop, 0);
 }
 
-void PulseAudio::setInputDeviceMuteByIndex(uint32_t index, int mute) {
-    pa_operation *op;
+void PulseAudio::setMuteForAllInputDevices(bool muted) {
+    masterMute = muted ? 1 : 0;
 
     pa_threaded_mainloop_lock(mainloop);
-    op = pa_context_set_source_mute_by_index(context, index, mute, pa_mute_cb, this);
-    Q_ASSERT(op);
-    while (pa_operation_get_state(op) == PA_OPERATION_RUNNING) {
-        pa_threaded_mainloop_wait(mainloop);
+    for(auto& device : sources) {
+        pa_operation *op;
+        op = pa_context_set_source_mute_by_index(context, device.index, masterMute, pa_mute_cb, this);
+        Q_ASSERT(op);
+        while (pa_operation_get_state(op) == PA_OPERATION_RUNNING) {
+            pa_threaded_mainloop_wait(mainloop);
+        }
+        pa_operation_unref(op);
     }
-    pa_operation_unref(op);
     pa_threaded_mainloop_unlock(mainloop);
-}
-
-void PulseAudio::setAllInputDevicesMute(int mute) {
-    for(auto device : sources) {
-        setInputDeviceMuteByIndex(device.index, mute);
-    }
 }
 
 void PulseAudio::pa_update_source_list() {

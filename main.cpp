@@ -9,7 +9,7 @@
 #include "xhklib.h"
 
 PulseAudio pa;
-int mute = 0;
+bool mute = false;
 
 void keyboard_shortcut_pressed(xhkEvent e, void *a1, void *a2, void *a3) {
     Q_UNUSED(e);
@@ -18,6 +18,7 @@ void keyboard_shortcut_pressed(xhkEvent e, void *a1, void *a2, void *a3) {
     Q_UNUSED(a3);
 
     QString osdArguments;
+    mute = !mute;
     if (mute) {
         mute = 0;
         osdArguments = QString("{'icon': <'microphone-sensitivity-high-symbolic'>, 'label': <'All recording devices'>}");
@@ -26,7 +27,7 @@ void keyboard_shortcut_pressed(xhkEvent e, void *a1, void *a2, void *a3) {
         osdArguments = QString("{'icon': <'microphone-sensitivity-muted-symbolic'>, 'label': <'All recording devices'>}");
     }
 
-    pa.setAllInputDevicesMute(mute);
+    pa.setMuteForAllInputDevices(mute);
     // Show gnome notification (just for testing, should fail silently on other DEs)
     QStringList arguments = {
         "call",

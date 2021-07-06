@@ -21,8 +21,7 @@ public:
     PulseAudio();
     ~PulseAudio();
 
-    void setInputDeviceMuteByIndex(uint32_t index, int mute);
-    void setAllInputDevicesMute(int mute);
+    void setMuteForAllInputDevices(bool muted);
 
 private:
     static void pa_state_cb(pa_context *c, void *userdata);
@@ -43,6 +42,7 @@ private:
     pa_threaded_mainloop *mainloop;
     pa_mainloop_api *mainloop_api;
     pa_context *context;
+    int masterMute = 0;
 };
 
 
