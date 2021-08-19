@@ -38,7 +38,12 @@ void keyboard_shortcut_pressed(xhkEvent e, void *a1, void *a2, void *a3) {
         "org.gnome.Shell.ShowOSD",
         osdArguments
     };
-    QProcess::startDetached("gdbus", arguments);
+    QProcess gdbus;
+    gdbus.setStandardOutputFile(QProcess::nullDevice());
+    gdbus.setStandardErrorFile(QProcess::nullDevice());
+    gdbus.setProgram("gdbus");
+    gdbus.setArguments(arguments);
+    gdbus.startDetached();
 }
 
 int main(int argc, char *argv[])
