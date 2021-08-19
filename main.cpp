@@ -20,11 +20,9 @@ void keyboard_shortcut_pressed(xhkEvent e, void *a1, void *a2, void *a3) {
     QString osdArguments;
     mute = !mute;
     if (mute) {
-        mute = 0;
-        osdArguments = QString("{'icon': <'microphone-sensitivity-high-symbolic'>, 'label': <'All recording devices'>}");
-    } else {
-        mute = 1;
         osdArguments = QString("{'icon': <'microphone-sensitivity-muted-symbolic'>, 'label': <'All recording devices'>}");
+    } else {
+        osdArguments = QString("{'icon': <'microphone-sensitivity-high-symbolic'>, 'label': <'All recording devices'>}");
     }
 
     pa.setMuteForAllInputDevices(mute);
