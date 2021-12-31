@@ -3,22 +3,36 @@
 PulseAudio::PulseAudio()
 {
     pa_operation *op;
+    int result;
+
     // Create a threaded mainloop API and a connection to the default server
     mainloop = pa_threaded_mainloop_new();
-    Q_ASSERT(pa_threaded_mainloop_start(mainloop) == 0);
+    result = pa_threaded_mainloop_start(mainloop);
+    if(result != 0) {
+        qFatal("pa_threaded_mainloop_start has failed!");
+    }
+
     mainloop_api = pa_threaded_mainloop_get_api(mainloop);
     context = pa_context_new(mainloop_api, "Aurras");
 
     qDebug() << "Connecting to PulseAudio server...";
     pa_threaded_mainloop_lock(mainloop);
+
     pa_context_set_state_callback(context, pa_state_cb, mainloop);
-    Q_ASSERT(pa_context_connect(context, NULL, PA_CONTEXT_NOFLAGS, NULL) == 0);
-    // Here we're waiting for pa_context to connect to the running server. Once that happenes, the
-    // callback function will go into PA_CONTEXT_READY state and will send a signal to which
-    // unblocks this waiting call.
-    // Not sure if waiting inside of a while loop is needed for context_connect, but we are doing
-    // it to be safe, as per docs: https://freedesktop.org/software/pulseaudio/doxygen/threaded_mainloop.html
-    while(pa_context_get_state(context) != PA_CONTEXT_READY) {
+    result = pa_context_connect(context, NULL, PA_CONTEXT_NOFLAGS, NULL);
+    if(result != 0) {
+        qFatal("pa_context_connect has failed!");
+    }
+
+    // We're waiting for pa_context to connect to the running server. Once context state is
+    // set to PA_CONTEXT_READY, we're are connected to PA server.
+    pa_context_state_t context_state = pa_context_get_state(context);
+    for(;;) {
+        if (!PA_CONTEXT_IS_GOOD(context_state)) {
+            qFatal("Unable to connect, PA context state is BAD: %d", context_state);
+            break;
+        }
+        if (context_state == PA_CONTEXT_READY) break;
         pa_threaded_mainloop_wait(mainloop);
     }
 
@@ -46,7 +60,7 @@ void PulseAudio::pa_state_cb(pa_context *c, void *userdata) {
     pa_threaded_mainloop *m = static_cast<pa_threaded_mainloop*>(userdata);
 
     state = pa_context_get_state(c);
-    switch  (state) {
+    switch (state) {
     case PA_CONTEXT_UNCONNECTED:
         qDebug() << "PulseAudio state change: PA_CONTEXT_UNCONNECTED";
         break;
@@ -62,7 +76,6 @@ void PulseAudio::pa_state_cb(pa_context *c, void *userdata) {
     case PA_CONTEXT_READY:
         qDebug() << "PulseAudio state change: PA_CONTEXT_READY";
         qDebug() << "Successfully connected to PulseAudio server";
-        pa_threaded_mainloop_signal(m, 0);
         break;
     case PA_CONTEXT_FAILED:
         qDebug() << "PulseAudio state change: PA_CONTEXT_FAILED";
@@ -77,6 +90,8 @@ void PulseAudio::pa_state_cb(pa_context *c, void *userdata) {
                    QString("We should never reach this state: %1!").arg(state).toStdString().c_str());
         break;
     }
+
+    pa_threaded_mainloop_signal(m, 0);
 }
 
 void PulseAudio::pa_subscribe_cb(pa_context *c, pa_subscription_event_type_t t, uint32_t idx, void *userdata) {
