@@ -144,8 +144,9 @@ void PulseAudio::pa_source_list_cb(pa_context *c, const pa_source_info *info, in
 
     if (eol) {
         pa_threaded_mainloop_signal(instance->mainloop, 0);
+#ifdef QT_DEBUG
         instance->print_source_list();
-
+#endif
         return;
     }
 
