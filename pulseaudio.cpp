@@ -26,8 +26,9 @@ PulseAudio::PulseAudio()
 
     // We're waiting for pa_context to connect to the running server. Once context state is
     // set to PA_CONTEXT_READY, we're are connected to PA server.
-    pa_context_state_t context_state = pa_context_get_state(context);
     for(;;) {
+        pa_context_state_t context_state = pa_context_get_state(context);
+
         if (!PA_CONTEXT_IS_GOOD(context_state)) {
             qFatal("Unable to connect, PA context state is BAD: %d", context_state);
             break;
@@ -36,6 +37,7 @@ PulseAudio::PulseAudio()
         pa_threaded_mainloop_wait(mainloop);
     }
 
+    qDebug() << "Successfully connected to PulseAudio server";
     // Set up event subscription. PA will call our callback (pa_subscribe_cb) any time
     // an event happens that matches our mask - in our case on any source device event
     pa_context_set_subscribe_callback(context, pa_subscribe_cb, this);
@@ -75,7 +77,6 @@ void PulseAudio::pa_state_cb(pa_context *c, void *userdata) {
         break;
     case PA_CONTEXT_READY:
         qDebug() << "PulseAudio state change: PA_CONTEXT_READY";
-        qDebug() << "Successfully connected to PulseAudio server";
         break;
     case PA_CONTEXT_FAILED:
         qDebug() << "PulseAudio state change: PA_CONTEXT_FAILED";
