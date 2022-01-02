@@ -2,6 +2,10 @@
 
 PulseAudio::PulseAudio()
 {
+    connect(this, &PulseAudio::source_output_added, this, &PulseAudio::update_source_output_count);
+    connect(this, &PulseAudio::source_output_removed, this, &PulseAudio::update_source_output_count);
+    // I don't think we need to update count on source_output_updated, so we won't connect it for now
+
     pa_operation *op;
     int result;
 
@@ -137,19 +141,14 @@ void PulseAudio::pa_subscribe_cb(pa_context *c, pa_subscription_event_type_t t, 
     case PA_SUBSCRIPTION_EVENT_SOURCE_OUTPUT: {
         switch(event_operation) {
         case PA_SUBSCRIPTION_EVENT_NEW:
-        case PA_SUBSCRIPTION_EVENT_REMOVE: {
-            qDebug() << "Source output has been added or removed. Updating source output count...";
-
-            instance->active_source_output_count = 0;
-            pa_operation *op = pa_context_get_source_output_info_list(instance->context, pa_source_output_list_cb, instance);
-            Q_ASSERT(op);
-            pa_operation_unref(op);
+            emit instance->source_output_added(idx);
             break;
-        }
-        case PA_SUBSCRIPTION_EVENT_CHANGE: {
-            // We do not care about this event for now
+        case PA_SUBSCRIPTION_EVENT_REMOVE:
+            emit instance->source_output_removed(idx);
             break;
-        }
+        case PA_SUBSCRIPTION_EVENT_CHANGE:
+            emit instance->source_output_updated(idx);
+            break;
         default:
             qWarning("Received unexpected event operation %d", event_operation);
             break;
@@ -161,11 +160,24 @@ void PulseAudio::pa_subscribe_cb(pa_context *c, pa_subscription_event_type_t t, 
     }
 }
 
+void PulseAudio::update_source_output_count() {
+    qDebug() << "Source output has been added or removed. Updating source output count...";
+
+    pa_threaded_mainloop_lock(mainloop);
+    active_source_output_count = 0;
+    pa_operation *op = pa_context_get_source_output_info_list(context, pa_source_output_list_cb, this);
+    Q_ASSERT(op);
+    while (pa_operation_get_state(op) == PA_OPERATION_RUNNING) {
+        pa_threaded_mainloop_wait(mainloop);
+    }
+    pa_operation_unref(op);
+    pa_threaded_mainloop_unlock(mainloop);
+}
+
 // pa_mainloop will call this function when it's ready to tell us about a source.
 // We probably need mutexes on the inputDevices structure
 void PulseAudio::pa_source_list_cb(pa_context *c, const pa_source_info *info, int eol, void *userdata) {
     Q_UNUSED(c);
-
     PulseAudio *instance = static_cast<PulseAudio*>(userdata);
 
     if (eol) {
@@ -181,7 +193,6 @@ void PulseAudio::pa_source_list_cb(pa_context *c, const pa_source_info *info, in
 
 void PulseAudio::pa_source_output_list_cb(pa_context *c, const pa_source_output_info *l, int eol, void *userdata) {
     Q_UNUSED(c);
-    qDebug() << "pa_source_output_list_cb thread" << QThread::currentThreadId();
     PulseAudio *instance = static_cast<PulseAudio*>(userdata);
 
     if (eol) {

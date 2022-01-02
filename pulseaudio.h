@@ -2,6 +2,7 @@
 #define PULSEAUDIO_H
 
 #include <pulse/pulseaudio.h>
+#include <QObject>
 #include <QDebug>
 #include <QThread> // to remove
 
@@ -15,13 +16,25 @@ struct PulseAudioDevice {
     }
 };
 
-class PulseAudio
+class PulseAudio : public QObject
 {
+    Q_OBJECT
+
 public:
     PulseAudio();
     ~PulseAudio();
 
     void setMuteForAllInputDevices(bool muted);
+
+public slots:
+    void update_source_output_count();
+
+signals:
+    void source_output_added(quint32 idx);
+    void source_output_removed(quint32 idx);
+    void source_output_updated(quint32 idx);
+
+    void source_output_count_changed(int count);
 
 private:
     static void pa_state_cb(pa_context *c, void *userdata);

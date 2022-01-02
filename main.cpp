@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
     qDebug() << "Main thread" << QThread::currentThreadId();
     keyboard.set_hsv(80, 255, 255, 1000);
 
-#if 1
+#if 0
     // this is just used for easier testing
     Q_UNUSED(argc);
     Q_UNUSED(argv);
