@@ -122,7 +122,7 @@ void PulseAudio::pa_subscribe_cb(pa_context *c, pa_subscription_event_type_t t, 
             // set this device's mute state to match the global mute state. In some cases this will not
             // be needed (the mute states will match), but it's less expansive than querying all information
             // about the device and then muting it if needed
-            qDebug() << "Source property changed";
+            qDebug() << "Source property changed" << idx;
             pa_operation *op = pa_context_set_source_mute_by_index(c, idx, instance->masterMute, NULL, NULL);
             Q_ASSERT(op);
             pa_operation_unref(op);
@@ -138,7 +138,12 @@ void PulseAudio::pa_subscribe_cb(pa_context *c, pa_subscription_event_type_t t, 
         switch(event_operation) {
         case PA_SUBSCRIPTION_EVENT_NEW:
         case PA_SUBSCRIPTION_EVENT_REMOVE: {
-            // TODO(Kristijan): Sink input was added/removed, check if any sink inputs remain active
+            qDebug() << "Source output has been added or removed. Updating source output count...";
+
+            instance->active_source_output_count = 0;
+            pa_operation *op = pa_context_get_source_output_info_list(instance->context, pa_source_output_list_cb, instance);
+            Q_ASSERT(op);
+            pa_operation_unref(op);
             break;
         }
         case PA_SUBSCRIPTION_EVENT_CHANGE: {
@@ -172,6 +177,21 @@ void PulseAudio::pa_source_list_cb(pa_context *c, const pa_source_info *info, in
     }
 
     instance->sources.append(PulseAudioDevice(info->name, info->index));
+}
+
+void PulseAudio::pa_source_output_list_cb(pa_context *c, const pa_source_output_info *l, int eol, void *userdata) {
+    Q_UNUSED(c);
+    qDebug() << "pa_source_output_list_cb thread" << QThread::currentThreadId();
+    PulseAudio *instance = static_cast<PulseAudio*>(userdata);
+
+    if (eol) {
+        pa_threaded_mainloop_signal(instance->mainloop, 0);
+        qDebug() << "Active source outputs:" << instance->active_source_output_count;
+        return;
+    }
+
+    ++instance->active_source_output_count;
+    qDebug() << "Index" << l->index <<  "Name" << l->name << "Driver" << l->driver << "Has volume" << l->has_volume;
 }
 
 void PulseAudio::pa_mute_cb(pa_context *c, int success, void *userdata) {
