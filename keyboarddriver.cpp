@@ -17,11 +17,6 @@ KeyboardDriver::~KeyboardDriver() {
 void KeyboardDriver::set_hsv(uint8_t hue, uint8_t saturation, uint8_t value, uint16_t duration) {
     rgb_timed_override_command command(hue, saturation, value, duration);
 
-    auto xxxx = qDebug();
-    for(size_t i = 0; i < sizeof(command); ++i) {
-        uint8_t *pointer = (uint8_t *)&command + i;
-        xxxx << QString("%1").arg(*pointer, 1, 16);
-    }
     write((uint8_t *)&command, sizeof(command));
 }
 
@@ -30,6 +25,7 @@ bool KeyboardDriver::write(const uint8_t *data, size_t length, bool should_retry
         if (!find_device()) return false;
     }
 
+    qDebug() << "Sending data to the keyboard:" << QByteArray((char *)data, length).toHex(' ');
     int result = hid_write(device_handle, data, length);
 
     if (result > 0) {

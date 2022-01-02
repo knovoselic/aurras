@@ -2,6 +2,7 @@
 #define KEYBOARDDRIVER_H
 
 #include <QDebug>
+#include <QByteArray>
 #include <QThread>
 #include <hidapi/hidapi.h>
 #include <arpa/inet.h>
