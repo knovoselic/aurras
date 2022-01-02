@@ -41,7 +41,7 @@ PulseAudio::PulseAudio()
     // Set up event subscription. PA will call our callback (pa_subscribe_cb) any time
     // an event happens that matches our mask - in our case on any source device event
     pa_context_set_subscribe_callback(context, pa_subscribe_cb, this);
-    op = pa_context_subscribe(context, pa_subscription_mask_t(PA_SUBSCRIPTION_MASK_SOURCE | PA_SUBSCRIPTION_MASK_SINK_INPUT) , NULL, NULL);
+    op = pa_context_subscribe(context, pa_subscription_mask_t(PA_SUBSCRIPTION_MASK_SOURCE | PA_SUBSCRIPTION_MASK_SOURCE_OUTPUT) , NULL, NULL);
     Q_ASSERT(op);
     pa_operation_unref(op);
     pa_threaded_mainloop_unlock(mainloop);
@@ -102,7 +102,6 @@ void PulseAudio::pa_subscribe_cb(pa_context *c, pa_subscription_event_type_t t, 
     pa_subscription_event_type_t event_type = static_cast<pa_subscription_event_type_t>(t & PA_SUBSCRIPTION_EVENT_FACILITY_MASK);
     pa_subscription_event_type_t event_operation = static_cast<pa_subscription_event_type_t>(t & PA_SUBSCRIPTION_EVENT_TYPE_MASK);
 
-    qDebug() << event_type << event_operation;
     switch(event_type) {
     case PA_SUBSCRIPTION_EVENT_SOURCE: {
         switch(event_operation) {
@@ -135,7 +134,7 @@ void PulseAudio::pa_subscribe_cb(pa_context *c, pa_subscription_event_type_t t, 
         }
         break;
     }
-    case PA_SUBSCRIPTION_EVENT_SINK_INPUT: {
+    case PA_SUBSCRIPTION_EVENT_SOURCE_OUTPUT: {
         switch(event_operation) {
         case PA_SUBSCRIPTION_EVENT_NEW:
         case PA_SUBSCRIPTION_EVENT_REMOVE: {
