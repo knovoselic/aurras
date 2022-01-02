@@ -41,7 +41,7 @@ PulseAudio::PulseAudio()
     // Set up event subscription. PA will call our callback (pa_subscribe_cb) any time
     // an event happens that matches our mask - in our case on any source device event
     pa_context_set_subscribe_callback(context, pa_subscribe_cb, this);
-    op = pa_context_subscribe(context, PA_SUBSCRIPTION_MASK_SOURCE, NULL, NULL);
+    op = pa_context_subscribe(context, pa_subscription_mask_t(PA_SUBSCRIPTION_MASK_SOURCE | PA_SUBSCRIPTION_MASK_SINK_INPUT) , NULL, NULL);
     Q_ASSERT(op);
     pa_operation_unref(op);
     pa_threaded_mainloop_unlock(mainloop);
@@ -99,40 +99,61 @@ void PulseAudio::pa_subscribe_cb(pa_context *c, pa_subscription_event_type_t t, 
     Q_UNUSED(c);
 
     PulseAudio *instance = static_cast<PulseAudio *>(userdata);
+    pa_subscription_event_type_t event_type = static_cast<pa_subscription_event_type_t>(t & PA_SUBSCRIPTION_EVENT_FACILITY_MASK);
+    pa_subscription_event_type_t event_operation = static_cast<pa_subscription_event_type_t>(t & PA_SUBSCRIPTION_EVENT_TYPE_MASK);
 
-    Q_ASSERT_X((t & PA_SUBSCRIPTION_EVENT_FACILITY_MASK) == PA_SUBSCRIPTION_EVENT_SOURCE,
-               __FUNCTION__,
-               "Received unexpected event");
+    qDebug() << event_type << event_operation;
+    switch(event_type) {
+    case PA_SUBSCRIPTION_EVENT_SOURCE: {
+        switch(event_operation) {
+        case PA_SUBSCRIPTION_EVENT_NEW:
+        case PA_SUBSCRIPTION_EVENT_REMOVE: {
+            // TODO(Kristijan): We probably need a mutex for this
 
-    switch((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK)) {
-    case PA_SUBSCRIPTION_EVENT_NEW:
-    case PA_SUBSCRIPTION_EVENT_REMOVE: {
-        // TODO(Kristijan): We probably need a mutex for this
-
-        // Instead of removing and adding specific device, for now we'll be lazy and just reload the whole list
-        qDebug() << "Source has been added or removed. Updating device list...";
-        instance->sources.clear();
-        pa_operation *op = pa_context_get_source_info_list(instance->context, pa_source_list_cb, instance);
-        Q_ASSERT(op);
-        pa_operation_unref(op);
+            // Instead of removing and adding specific device, for now we'll be lazy and just reload the whole list
+            qDebug() << "Source has been added or removed. Updating device list...";
+            instance->sources.clear();
+            pa_operation *op = pa_context_get_source_info_list(instance->context, pa_source_list_cb, instance);
+            Q_ASSERT(op);
+            pa_operation_unref(op);
+            break;
+        }
+        case PA_SUBSCRIPTION_EVENT_CHANGE: {
+            // Unfortunately we do not know which property of the device has been changed, so we'll just
+            // set this device's mute state to match the global mute state. In some cases this will not
+            // be needed (the mute states will match), but it's less expansive than querying all information
+            // about the device and then muting it if needed
+            qDebug() << "Source property changed";
+            pa_operation *op = pa_context_set_source_mute_by_index(c, idx, instance->masterMute, NULL, NULL);
+            Q_ASSERT(op);
+            pa_operation_unref(op);
+            break;
+        }
+        default:
+            qWarning("Received unexpected event operation %d", event_operation);
+            break;
+        }
         break;
     }
-    case PA_SUBSCRIPTION_EVENT_CHANGE: {
-        // Unfortunately we do not know which property of the device has been changed, so we'll just
-        // set this device's mute state to match the global mute state. In some cases this will not
-        // be needed (the mute states will match), but it's less expansive than querying all information
-        // about the device and then muting it if needed
-        qDebug() << "Source property changed";
-        pa_operation *op = pa_context_set_source_mute_by_index(c, idx, instance->masterMute, NULL, NULL);
-        Q_ASSERT(op);
-        pa_operation_unref(op);
+    case PA_SUBSCRIPTION_EVENT_SINK_INPUT: {
+        switch(event_operation) {
+        case PA_SUBSCRIPTION_EVENT_NEW:
+        case PA_SUBSCRIPTION_EVENT_REMOVE: {
+            // TODO(Kristijan): Sink input was added/removed, check if any sink inputs remain active
+            break;
+        }
+        case PA_SUBSCRIPTION_EVENT_CHANGE: {
+            // We do not care about this event for now
+            break;
+        }
+        default:
+            qWarning("Received unexpected event operation %d", event_operation);
+            break;
+        }
         break;
     }
     default:
-        Q_ASSERT_X(false,
-                   __FUNCTION__,
-                   QString("We should never reach this state: %1!").arg(t).toStdString().c_str());
-        break;
+        qWarning("Received unexpected event type %d", event_type);
     }
 }
 
@@ -158,6 +179,7 @@ void PulseAudio::pa_mute_cb(pa_context *c, int success, void *userdata) {
     Q_UNUSED(c);
 
     Q_ASSERT(success);
+    qDebug() << "pa_mute_cb" << success << "errno:" << pa_context_errno(c);
 
     PulseAudio *instance = static_cast<PulseAudio*>(userdata);
     pa_threaded_mainloop_signal(instance->mainloop, 0);
