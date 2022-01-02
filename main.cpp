@@ -6,8 +6,10 @@
 #include <QProcess>
 
 #include "pulseaudio.h"
+#include "keyboarddriver.h"
 #include "xhklib.h"
 
+KeyboardDriver keyboard;
 PulseAudio pa;
 bool mute = false;
 
@@ -49,6 +51,7 @@ void keyboard_shortcut_pressed(xhkEvent e, void *a1, void *a2, void *a3) {
 int main(int argc, char *argv[])
 {
     qDebug() << "Main thread" << QThread::currentThreadId();
+    keyboard.set_hsv(80, 255, 255, 1000);
 
 #if 1
     // this is just used for easier testing
