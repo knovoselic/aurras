@@ -12,22 +12,6 @@
 #define DEVICE_USAGE_PAGE 0xFF60
 #define REPORT_ID         0x00
 
-enum command_ids {
-    COMMAND_ID_RGB_TIMED_OVERRIDE = 0,
-};
-
-struct __attribute__((__packed__)) rgb_timed_override_command {
-    rgb_timed_override_command(uint8_t hue, uint8_t saturation, uint8_t value, uint16_t duration)
-        : hue(hue), saturation(saturation), value(value), duration(duration) {}
-
-    uint8_t report_id = REPORT_ID;
-    uint8_t command_id = COMMAND_ID_RGB_TIMED_OVERRIDE;
-    uint8_t hue;
-    uint8_t saturation;
-    uint8_t value;
-    uint16_t duration;
-};
-
 class KeyboardDriver
 {
 public:
@@ -35,7 +19,24 @@ public:
     ~KeyboardDriver();
 
     void set_hsv(uint8_t hue, uint8_t saturation, uint8_t value, uint16_t duration);
+
 private:
+    enum command_ids {
+        COMMAND_ID_RGB_TIMED_OVERRIDE = 0,
+    };
+
+    struct __attribute__((__packed__)) rgb_timed_override_command {
+        rgb_timed_override_command(uint8_t hue, uint8_t saturation, uint8_t value, uint16_t duration)
+            : hue(hue), saturation(saturation), value(value), duration(duration) {}
+
+        uint8_t report_id = REPORT_ID;
+        uint8_t command_id = COMMAND_ID_RGB_TIMED_OVERRIDE;
+        uint8_t hue;
+        uint8_t saturation;
+        uint8_t value;
+        uint16_t duration;
+    };
+
     bool find_device();
     bool write(const uint8_t *data, size_t length, bool should_retry = true);
 

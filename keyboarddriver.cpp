@@ -41,7 +41,7 @@ bool KeyboardDriver::write(const uint8_t *data, size_t length, bool should_retry
 
     if (!should_retry) return false;
 
-    qDebug() << "Retrying";
+    qDebug() << "Retrying...";
     hid_close(device_handle);
     device_handle = NULL;
     return write(data, length, false);
