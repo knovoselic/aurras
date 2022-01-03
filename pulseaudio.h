@@ -34,7 +34,7 @@ signals:
     void source_output_removed(quint32 idx);
     void source_output_updated(quint32 idx);
 
-    void source_output_count_changed(int count);
+    void active_source_output_count_changed(int new_count);
 
 private:
     static void pa_state_cb(pa_context *c, void *userdata);

@@ -172,6 +172,9 @@ void PulseAudio::update_source_output_count() {
     }
     pa_operation_unref(op);
     pa_threaded_mainloop_unlock(mainloop);
+
+    emit active_source_output_count_changed(active_source_output_count);
+    qDebug() << "Active source outputs:" << active_source_output_count;
 }
 
 // pa_mainloop will call this function when it's ready to tell us about a source.
@@ -197,7 +200,6 @@ void PulseAudio::pa_source_output_list_cb(pa_context *c, const pa_source_output_
 
     if (eol) {
         pa_threaded_mainloop_signal(instance->mainloop, 0);
-        qDebug() << "Active source outputs:" << instance->active_source_output_count;
         return;
     }
 
