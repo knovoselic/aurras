@@ -42,10 +42,11 @@ PulseAudio::PulseAudio()
     }
 
     qDebug() << "Successfully connected to PulseAudio server";
+
     // Set up event subscription. PA will call our callback (pa_subscribe_cb) any time
-    // an event happens that matches our mask - in our case on any source device event
+    // an event happens that matches our mask - in our case on any source-related event
     pa_context_set_subscribe_callback(context, pa_subscribe_cb, this);
-    op = pa_context_subscribe(context, pa_subscription_mask_t(PA_SUBSCRIPTION_MASK_SOURCE | PA_SUBSCRIPTION_MASK_SOURCE_OUTPUT) , NULL, NULL);
+    op = pa_context_subscribe(context, pa_subscription_mask_t(PA_SUBSCRIPTION_MASK_SOURCE | PA_SUBSCRIPTION_MASK_SOURCE_OUTPUT), NULL, NULL);
     Q_ASSERT(op);
     pa_operation_unref(op);
     pa_threaded_mainloop_unlock(mainloop);
@@ -177,23 +178,6 @@ void PulseAudio::update_source_output_count() {
     qDebug() << "Active source outputs:" << active_source_output_count;
 }
 
-// pa_mainloop will call this function when it's ready to tell us about a source.
-// We probably need mutexes on the inputDevices structure
-void PulseAudio::pa_source_list_cb(pa_context *c, const pa_source_info *info, int eol, void *userdata) {
-    Q_UNUSED(c);
-    PulseAudio *instance = static_cast<PulseAudio*>(userdata);
-
-    if (eol) {
-        pa_threaded_mainloop_signal(instance->mainloop, 0);
-#ifdef QT_DEBUG
-        instance->print_source_list();
-#endif
-        return;
-    }
-
-    instance->sources.append(PulseAudioDevice(info->name, info->index));
-}
-
 void PulseAudio::pa_source_output_list_cb(pa_context *c, const pa_source_output_info *l, int eol, void *userdata) {
     Q_UNUSED(c);
     PulseAudio *instance = static_cast<PulseAudio*>(userdata);
@@ -205,16 +189,6 @@ void PulseAudio::pa_source_output_list_cb(pa_context *c, const pa_source_output_
 
     ++instance->active_source_output_count;
     qDebug() << "Index" << l->index <<  "Name" << l->name << "Driver" << l->driver << "Has volume" << l->has_volume;
-}
-
-void PulseAudio::pa_mute_cb(pa_context *c, int success, void *userdata) {
-    Q_UNUSED(c);
-
-    Q_ASSERT(success);
-    qDebug() << "pa_mute_cb" << success << "errno:" << pa_context_errno(c);
-
-    PulseAudio *instance = static_cast<PulseAudio*>(userdata);
-    pa_threaded_mainloop_signal(instance->mainloop, 0);
 }
 
 void PulseAudio::setMuteForAllInputDevices(bool muted) {
@@ -233,6 +207,16 @@ void PulseAudio::setMuteForAllInputDevices(bool muted) {
     pa_threaded_mainloop_unlock(mainloop);
 }
 
+void PulseAudio::pa_mute_cb(pa_context *c, int success, void *userdata) {
+    Q_UNUSED(c);
+
+    Q_ASSERT(success);
+    qDebug() << "pa_mute_cb" << success << "errno:" << pa_context_errno(c);
+
+    PulseAudio *instance = static_cast<PulseAudio*>(userdata);
+    pa_threaded_mainloop_signal(instance->mainloop, 0);
+}
+
 void PulseAudio::pa_update_source_list() {
     pa_operation *op;
 
@@ -244,4 +228,19 @@ void PulseAudio::pa_update_source_list() {
     }
     pa_operation_unref(op);
     pa_threaded_mainloop_unlock(mainloop);
+}
+
+void PulseAudio::pa_source_list_cb(pa_context *c, const pa_source_info *info, int eol, void *userdata) {
+    Q_UNUSED(c);
+    PulseAudio *instance = static_cast<PulseAudio*>(userdata);
+
+    if (eol) {
+        pa_threaded_mainloop_signal(instance->mainloop, 0);
+#ifdef QT_DEBUG
+        instance->print_source_list();
+#endif
+        return;
+    }
+
+    instance->sources.append(PulseAudioDevice(info->name, info->index));
 }
