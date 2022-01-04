@@ -11,6 +11,7 @@ SOURCES += \
         keyboarddriver.cpp \
         main.cpp \
         pulseaudio.cpp \
+        runguard.cpp \
         xhklib.cpp
 
 # Default rules for deployment.
@@ -21,4 +22,5 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 HEADERS += \
     keyboarddriver.h \
     pulseaudio.h \
+    runguard.h \
     xhklib.h
