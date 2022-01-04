@@ -6,7 +6,7 @@
 
 #include "pulseaudio.h"
 #include "keyboarddriver.h"
-#include "runguard.h"
+#include "simpleipc.h"
 
 #ifdef QT_DEBUG
 #define SHARED_MEMORY_KEY "Aurras driver shared memory - DEBUG"
@@ -22,9 +22,9 @@ void handle_signals(int signal) {
     qApp->quit();
 }
 
-void handle_ipc_command(RunGuard::ipc_commands command, PulseAudio &pa) {
+void handle_ipc_command(SimpleIPC::ipc_command command, PulseAudio &pa) {
     switch (command) {
-    case RunGuard::ipc_commands::TOGGLE_MUTE:
+    case SimpleIPC::ipc_command::TOGGLE_MUTE:
         mute = !mute;
         pa.setMuteForAllInputDevices(mute);
         break;
@@ -34,7 +34,7 @@ void handle_ipc_command(RunGuard::ipc_commands command, PulseAudio &pa) {
     }
 }
 
-int client_main(RunGuard &guard, QCoreApplication &app) {
+int client_main(SimpleIPC &guard, QCoreApplication &app) {
     QCommandLineParser parser;
     parser.setApplicationDescription("Aurras driver.\nTo start the daemon, "
                                      "run without any options. If the daemon "
@@ -49,7 +49,7 @@ int client_main(RunGuard &guard, QCoreApplication &app) {
     parser.process(app);
 
     if (parser.isSet("toggle-mute")) {
-        guard.writeToSharedMemory(RunGuard::ipc_commands::TOGGLE_MUTE);
+        guard.writeToSharedMemory(SimpleIPC::ipc_command::TOGGLE_MUTE);
         return 0;
     }
 
@@ -61,19 +61,19 @@ int client_main(RunGuard &guard, QCoreApplication &app) {
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
-    RunGuard guard(SHARED_MEMORY_KEY);
+    SimpleIPC ipc(SHARED_MEMORY_KEY);
 
     app.setApplicationName("Aurras");
     app.setApplicationVersion("v0.1");
-    if (!guard.initialize()) {
-        return client_main(guard, app);
+    if (!ipc.initializeDaemon()) {
+        return client_main(ipc, app);
     }
 
     PulseAudio pa;
     KeyboardDriver keyboard;
     QObject context;
 
-    QObject::connect(&guard, &RunGuard::commandReceived, &context, [&](RunGuard::ipc_commands command) { handle_ipc_command(command, pa); });
+    QObject::connect(&ipc, &SimpleIPC::commandReceived, &context, [&](SimpleIPC::ipc_command command) { handle_ipc_command(command, pa); });
 
     signal(SIGTERM, handle_signals);
     signal(SIGABRT, handle_signals);

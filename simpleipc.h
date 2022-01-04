@@ -1,5 +1,5 @@
-#ifndef RUNGUARD_H
-#define RUNGUARD_H
+#ifndef SIMPLEIPC_H
+#define SIMPLEIPC_H
 
 // Based on code from https://stackoverflow.com/questions/5006547/qt-best-practice-for-a-single-instance-app-protection
 
@@ -9,28 +9,28 @@
 #include <QSharedMemory>
 #include <QSystemSemaphore>
 
-class RunGuard : public QThread
+class SimpleIPC : public QThread
 {
     Q_OBJECT
 
 public:
-    enum ipc_commands {
+    enum ipc_command {
         WAITING_FOR_COMMAND = 0,
         TOGGLE_MUTE
     };
-    Q_ENUM(ipc_commands);
+    Q_ENUM(ipc_command);
 
-    RunGuard(const QString& key);
-    ~RunGuard();
+    SimpleIPC(const QString& key);
+    ~SimpleIPC();
 
     void run() override;
 
-    bool initialize();
+    bool initializeDaemon();
     void writeToSharedMemory(quint64 value);
     void release();
 
 signals:
-    void commandReceived(RunGuard::ipc_commands command);
+    void commandReceived(SimpleIPC::ipc_command command);
 
 private:
     const QString key;
@@ -40,9 +40,9 @@ private:
     QSharedMemory shared_memory;
     QSystemSemaphore memory_lock;
 
-    Q_DISABLE_COPY(RunGuard)
+    Q_DISABLE_COPY(SimpleIPC)
 };
 
-Q_DECLARE_METATYPE(RunGuard::ipc_commands);
+Q_DECLARE_METATYPE(SimpleIPC::ipc_command);
 
-#endif // RUNGUARD_H
+#endif // SIMPLEIPC_H

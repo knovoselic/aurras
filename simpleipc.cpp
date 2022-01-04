@@ -1,7 +1,7 @@
 #include <QCryptographicHash>
-#include "runguard.h"
+#include "simpleipc.h"
 
-static const int _RunGuardIpcCommandsMetaTypeId = qRegisterMetaType<RunGuard::ipc_commands>();
+static const int _SimpleIPCIpcCommandMetaTypeId = qRegisterMetaType<SimpleIPC::ipc_command>();
 
 namespace {
     QString generate_key_hash(const QString& key, const QString& salt) {
@@ -15,7 +15,7 @@ namespace {
     }
 }
 
-RunGuard::RunGuard(const QString& key) :
+SimpleIPC::SimpleIPC(const QString& key) :
     key(key),
     memory_lock_key(generate_key_hash(key, "_memory_lock_key")),
     shared_memory_key(generate_key_hash(key, "_shared_memory_key")),
@@ -29,35 +29,35 @@ RunGuard::RunGuard(const QString& key) :
     memory_lock.release();
 }
 
-RunGuard::~RunGuard() {
+SimpleIPC::~SimpleIPC() {
     requestInterruption();
     wait();
     release();
 }
 
-void RunGuard::run() {
+void SimpleIPC::run() {
     while(!isInterruptionRequested()) {
         shared_memory.lock();
         quint64 value = *(quint64 *)shared_memory.constData();
         shared_memory.unlock();
-        if (value != ipc_commands::WAITING_FOR_COMMAND) {
-            writeToSharedMemory(ipc_commands::WAITING_FOR_COMMAND);
-            emit commandReceived((ipc_commands)value);
+        if (value != ipc_command::WAITING_FOR_COMMAND) {
+            writeToSharedMemory(ipc_command::WAITING_FOR_COMMAND);
+            emit commandReceived((ipc_command)value);
         }
         msleep(100);
     }
 }
 
 /*!
-  \fn bool RunGuard::initialize()
+  \fn bool SimpleIPC::initializeDaemon()
 
-  Initializes RunGuard and application shared memory. If this is the first
+  Initializes SimpleIPC and application shared memory. If this is the first
   instance of the application, it will also start the shared memory watcher thread.
 
   If this is the first instance of the application, it returns \c true.
   If an instance of the application is already running, returns \c false.
 */
-bool RunGuard::initialize() {
+bool SimpleIPC::initializeDaemon() {
     bool isFirst = true;
 
     memory_lock.acquire();
@@ -77,14 +77,14 @@ bool RunGuard::initialize() {
     return isFirst;
 }
 
-void RunGuard::writeToSharedMemory(quint64 value) {
+void SimpleIPC::writeToSharedMemory(quint64 value) {
     shared_memory.lock();
     quint64 *shared_value_pointer = (quint64 *) shared_memory.data();
     *shared_value_pointer = value;
     shared_memory.unlock();
 }
 
-void RunGuard::release() {
+void SimpleIPC::release() {
     memory_lock.acquire();
     if (shared_memory.isAttached()) {
         shared_memory.detach();
