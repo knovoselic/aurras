@@ -2,6 +2,15 @@
 
 PulseAudio::PulseAudio()
 {
+    // Instead of adding and removing a device, for now we'll be lazy and just reload the whole list
+    connect(this, &PulseAudio::source_added, this, &PulseAudio::pa_update_source_list);
+    connect(this, &PulseAudio::source_removed, this, &PulseAudio::pa_update_source_list);
+    // Unfortunately we do not know which property of the device has been changed, so we'll just
+    // set this device's mute state to match the global mute state. In some cases this will not
+    // be needed (the mute states will match), but it's less expansive than querying all information
+    // about the device and then muting it if needed
+    connect(this, &PulseAudio::source_updated, this, &PulseAudio::pa_set_source_mute_to_master_mute_by_index);
+
     connect(this, &PulseAudio::source_output_added, this, &PulseAudio::update_source_output_count);
     connect(this, &PulseAudio::source_output_removed, this, &PulseAudio::update_source_output_count);
     // I don't think we need to update count on source_output_updated, so we won't connect it for now
@@ -52,6 +61,7 @@ PulseAudio::PulseAudio()
     pa_threaded_mainloop_unlock(mainloop);
 
     pa_update_source_list();
+    update_source_output_count();
 }
 
 PulseAudio::~PulseAudio()
@@ -111,28 +121,14 @@ void PulseAudio::pa_subscribe_cb(pa_context *c, pa_subscription_event_type_t t, 
     case PA_SUBSCRIPTION_EVENT_SOURCE: {
         switch(event_operation) {
         case PA_SUBSCRIPTION_EVENT_NEW:
-        case PA_SUBSCRIPTION_EVENT_REMOVE: {
-            // TODO(Kristijan): We probably need a mutex for this
-
-            // Instead of removing and adding specific device, for now we'll be lazy and just reload the whole list
-            qDebug() << "Source has been added or removed. Updating device list...";
-            instance->sources.clear();
-            pa_operation *op = pa_context_get_source_info_list(instance->context, pa_source_list_cb, instance);
-            Q_ASSERT(op);
-            pa_operation_unref(op);
+            emit instance->source_added(idx);
             break;
-        }
-        case PA_SUBSCRIPTION_EVENT_CHANGE: {
-            // Unfortunately we do not know which property of the device has been changed, so we'll just
-            // set this device's mute state to match the global mute state. In some cases this will not
-            // be needed (the mute states will match), but it's less expansive than querying all information
-            // about the device and then muting it if needed
-            qDebug() << "Source property changed" << idx;
-            pa_operation *op = pa_context_set_source_mute_by_index(c, idx, instance->masterMute, NULL, NULL);
-            Q_ASSERT(op);
-            pa_operation_unref(op);
+        case PA_SUBSCRIPTION_EVENT_REMOVE:
+            emit instance->source_removed(idx);
             break;
-        }
+        case PA_SUBSCRIPTION_EVENT_CHANGE:
+            emit instance->source_updated(idx);
+            break;
         default:
             qWarning("Received unexpected event operation %d", event_operation);
             break;
@@ -194,16 +190,22 @@ void PulseAudio::pa_source_output_list_cb(pa_context *c, const pa_source_output_
 void PulseAudio::setMuteForAllInputDevices(bool muted) {
     masterMute = muted ? 1 : 0;
 
-    pa_threaded_mainloop_lock(mainloop);
     for(auto& device : sources) {
-        pa_operation *op;
-        op = pa_context_set_source_mute_by_index(context, device.index, masterMute, pa_mute_cb, this);
-        Q_ASSERT(op);
-        while (pa_operation_get_state(op) == PA_OPERATION_RUNNING) {
-            pa_threaded_mainloop_wait(mainloop);
-        }
-        pa_operation_unref(op);
+        pa_set_source_mute_to_master_mute_by_index(device.index);
     }
+}
+
+void PulseAudio::pa_set_source_mute_to_master_mute_by_index(quint32 idx) {
+    pa_threaded_mainloop_lock(mainloop);
+
+    pa_operation *op;
+    op = pa_context_set_source_mute_by_index(context, idx, masterMute, pa_mute_cb, this);
+    Q_ASSERT(op);
+    while (pa_operation_get_state(op) == PA_OPERATION_RUNNING) {
+        pa_threaded_mainloop_wait(mainloop);
+    }
+    pa_operation_unref(op);
+
     pa_threaded_mainloop_unlock(mainloop);
 }
 
@@ -221,6 +223,7 @@ void PulseAudio::pa_update_source_list() {
     pa_operation *op;
 
     pa_threaded_mainloop_lock(mainloop);
+    sources.clear();
     op = pa_context_get_source_info_list(context, pa_source_list_cb, this);
     Q_ASSERT(op);
     while (pa_operation_get_state(op) == PA_OPERATION_RUNNING) {
