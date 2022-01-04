@@ -51,6 +51,7 @@ void keyboard_shortcut_pressed(xhkEvent e, void *a1, void *a2, void *a3) {
 int main(int argc, char *argv[])
 {
     qDebug() << "Main thread" << QThread::currentThreadId();
+    pa.setMuteForAllInputDevices(true);
     keyboard.set_hsv(80, 255, 255, 1000);
 
 #if 0
