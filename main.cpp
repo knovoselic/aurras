@@ -9,17 +9,29 @@
 #include "runguard.h"
 
 #ifdef QT_DEBUG
-    #define SHARED_MEMORY_KEY "Aurras driver shared memory - DEBUG"
+#define SHARED_MEMORY_KEY "Aurras driver shared memory - DEBUG"
 #else
-    #define SHARED_MEMORY_KEY "Aurras driver shared memory"
+#define SHARED_MEMORY_KEY "Aurras driver shared memory"
 #endif
 
-bool mute = false;
+bool mute = true;
 
 void handle_signals(int signal) {
     Q_UNUSED(signal);
 
     qApp->quit();
+}
+
+void handle_ipc_command(RunGuard::ipc_commands command, PulseAudio &pa) {
+    switch (command) {
+    case RunGuard::ipc_commands::TOGGLE_MUTE:
+        mute = !mute;
+        pa.setMuteForAllInputDevices(mute);
+        break;
+    default:
+        qWarning() << "Received unexpected IPC command:" << command;
+        break;
+    }
 }
 
 int client_main(RunGuard &guard, QCoreApplication &app) {
@@ -32,8 +44,8 @@ int client_main(RunGuard &guard, QCoreApplication &app) {
     parser.addVersionOption();
 
     parser.addOptions({
-        {{"t", "toggle-mute"}, QCoreApplication::translate("main", "Toggle mute state of all input devices")}
-    });
+                          {{"t", "toggle-mute"}, QCoreApplication::translate("main", "Toggle mute state of all input devices")}
+                      });
     parser.process(app);
 
     if (parser.isSet("toggle-mute")) {
@@ -59,16 +71,15 @@ int main(int argc, char *argv[])
 
     PulseAudio pa;
     KeyboardDriver keyboard;
+    QObject context;
 
-    QObject::connect(&guard, &RunGuard::commandReceived, [](RunGuard::ipc_commands command) {
-        qDebug() << "Command received:" << command;
-    });
+    QObject::connect(&guard, &RunGuard::commandReceived, &context, [&](RunGuard::ipc_commands command) { handle_ipc_command(command, pa); });
 
     signal(SIGTERM, handle_signals);
     signal(SIGABRT, handle_signals);
     signal(SIGINT, handle_signals);
 
-    pa.setMuteForAllInputDevices(true);
+    pa.setMuteForAllInputDevices(mute);
     keyboard.set_hsv(80, 255, 255, 1000);
 
     return app.exec();
