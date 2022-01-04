@@ -11,8 +11,8 @@ PulseAudio::PulseAudio()
     // about the device and then muting it if needed
     connect(this, &PulseAudio::source_updated, this, &PulseAudio::pa_set_source_mute_to_master_mute_by_index);
 
-    connect(this, &PulseAudio::source_output_added, this, &PulseAudio::update_source_output_count);
-    connect(this, &PulseAudio::source_output_removed, this, &PulseAudio::update_source_output_count);
+    connect(this, &PulseAudio::source_output_added, this, &PulseAudio::pa_update_source_output_count);
+    connect(this, &PulseAudio::source_output_removed, this, &PulseAudio::pa_update_source_output_count);
     // I don't think we need to update count on source_output_updated, so we won't connect it for now
 
     pa_operation *op;
@@ -61,7 +61,7 @@ PulseAudio::PulseAudio()
     pa_threaded_mainloop_unlock(mainloop);
 
     pa_update_source_list();
-    update_source_output_count();
+    pa_update_source_output_count();
 }
 
 PulseAudio::~PulseAudio()
@@ -157,7 +157,7 @@ void PulseAudio::pa_subscribe_cb(pa_context *c, pa_subscription_event_type_t t, 
     }
 }
 
-void PulseAudio::update_source_output_count() {
+void PulseAudio::pa_update_source_output_count() {
     qDebug() << "Source output has been added or removed. Updating source output count...";
 
     pa_threaded_mainloop_lock(mainloop);
