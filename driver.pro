@@ -11,8 +11,7 @@ SOURCES += \
         keyboarddriver.cpp \
         main.cpp \
         pulseaudio.cpp \
-        runguard.cpp \
-        xhklib.cpp
+        runguard.cpp
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
@@ -22,5 +21,4 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 HEADERS += \
     keyboarddriver.h \
     pulseaudio.h \
-    runguard.h \
-    xhklib.h
+    runguard.h
