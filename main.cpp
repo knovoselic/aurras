@@ -27,7 +27,12 @@ int main(int argc, char *argv[])
     QCoreApplication a(argc, argv);
     RunGuard guard(SHARED_MEMORY_KEY);
 
-    if (!guard.tryToRun()) {
+    QObject::connect(&guard, &RunGuard::commandReceived, [](RunGuard::ipc_commands command) {
+        qDebug() << "Command received:" << command;
+    });
+
+    if (!guard.initialize()) {
+        guard.writeToSharedMemory(RunGuard::ipc_commands::TOGGLE_MUTE);
         qDebug() << "Another instance is already running!";
         return 1;
     }
