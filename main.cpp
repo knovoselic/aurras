@@ -19,33 +19,8 @@ void keyboard_shortcut_pressed(xhkEvent e, void *a1, void *a2, void *a3) {
     Q_UNUSED(a2);
     Q_UNUSED(a3);
 
-    QString osdArguments;
     mute = !mute;
-    if (mute) {
-        osdArguments = QString("{'icon': <'microphone-sensitivity-muted-symbolic'>, 'label': <'All recording devices'>}");
-    } else {
-        osdArguments = QString("{'icon': <'microphone-sensitivity-high-symbolic'>, 'label': <'All recording devices'>}");
-    }
-
     pa.setMuteForAllInputDevices(mute);
-    // Show gnome notification (just for testing, should fail silently on other DEs)
-    QStringList arguments = {
-        "call",
-        "--session",
-        "--dest",
-        "org.gnome.Shell",
-        "--object-path",
-        "/org/gnome/Shell",
-        "--method",
-        "org.gnome.Shell.ShowOSD",
-        osdArguments
-    };
-    QProcess gdbus;
-    gdbus.setStandardOutputFile(QProcess::nullDevice());
-    gdbus.setStandardErrorFile(QProcess::nullDevice());
-    gdbus.setProgram("gdbus");
-    gdbus.setArguments(arguments);
-    gdbus.startDetached();
 }
 #endif
 
