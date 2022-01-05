@@ -19,10 +19,10 @@ public:
     KeyboardDriver();
     ~KeyboardDriver();
 
-    void set_hsv(uint8_t hue, uint8_t saturation, uint8_t value, uint16_t duration);
+    void setHsv(uint8_t hue, uint8_t saturation, uint8_t value, uint16_t duration);
 
 private:
-    enum command_ids {
+    enum command_id {
         COMMAND_ID_RGB_TIMED_OVERRIDE = 0,
     };
 

@@ -14,7 +14,7 @@ KeyboardDriver::~KeyboardDriver() {
     }
 }
 
-void KeyboardDriver::set_hsv(uint8_t hue, uint8_t saturation, uint8_t value, uint16_t duration) {
+void KeyboardDriver::setHsv(uint8_t hue, uint8_t saturation, uint8_t value, uint16_t duration) {
     rgb_timed_override_command command(hue, saturation, value, duration);
 
     write((uint8_t *)&command, sizeof(command));

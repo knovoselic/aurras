@@ -19,15 +19,15 @@ bool anyInputDeviceActive = false;
 PulseAudio *pa;
 KeyboardDriver *keyboard;
 
-void handle_signals(int signal) {
+void handleSignals(int signal) {
     Q_UNUSED(signal);
 
     qApp->quit();
 }
 
-void handle_ipc_command(SimpleIPC::ipc_command command) {
+void handleIPCCommand(SimpleIPC::ipc_command command) {
     switch (command) {
-    case SimpleIPC::ipc_command::TOGGLE_MUTE:
+    case SimpleIPC::ipc_command::IPC_COMMAND_TOGGLE_MUTE:
         mute = !mute;
         pa->setMuteForAllInputDevices(mute);
         break;
@@ -37,7 +37,7 @@ void handle_ipc_command(SimpleIPC::ipc_command command) {
     }
 }
 
-void handle_active_source_output_count_changed(int new_count) {
+void handleActiveSourceOutputCountChanged(int new_count) {
     anyInputDeviceActive = new_count > 0;
 }
 
@@ -56,7 +56,7 @@ int client_main(SimpleIPC &guard, QCoreApplication &app) {
     parser.process(app);
 
     if (parser.isSet("toggle-mute")) {
-        guard.writeToSharedMemory(SimpleIPC::ipc_command::TOGGLE_MUTE);
+        guard.writeToSharedMemory(SimpleIPC::ipc_command::IPC_COMMAND_TOGGLE_MUTE);
         return 0;
     }
 
@@ -79,21 +79,21 @@ int main(int argc, char *argv[])
     pa = new PulseAudio();
     keyboard = new KeyboardDriver();
 
-    QObject::connect(&ipc, &SimpleIPC::commandReceived, handle_ipc_command);
-    QObject::connect(pa, &PulseAudio::active_source_output_count_changed, &handle_active_source_output_count_changed);
+    QObject::connect(&ipc, &SimpleIPC::commandReceived, handleIPCCommand);
+    QObject::connect(pa, &PulseAudio::activeSourceOutputCountChanged, &handleActiveSourceOutputCountChanged);
 
     pa->updateSourceOutputCount();
 
-    signal(SIGTERM, handle_signals);
-    signal(SIGABRT, handle_signals);
-    signal(SIGINT, handle_signals);
+    signal(SIGTERM, handleSignals);
+    signal(SIGABRT, handleSignals);
+    signal(SIGINT, handleSignals);
 
     pa->setMuteForAllInputDevices(mute);
-    keyboard->set_hsv(80, 255, 255, 1000);
+    keyboard->setHsv(80, 255, 255, 1000);
 
     int returnValue = app.exec();
 
-    delete  pa;
+    delete pa;
     delete keyboard;
 
     return returnValue;

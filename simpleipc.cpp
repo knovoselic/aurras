@@ -40,8 +40,8 @@ void SimpleIPC::run() {
         shared_memory.lock();
         quint64 value = *(quint64 *)shared_memory.constData();
         shared_memory.unlock();
-        if (value != ipc_command::WAITING_FOR_COMMAND) {
-            writeToSharedMemory(ipc_command::WAITING_FOR_COMMAND);
+        if (value != ipc_command::IPC_COMMAND_WAITING) {
+            writeToSharedMemory(ipc_command::IPC_COMMAND_WAITING);
             emit commandReceived((ipc_command)value);
         }
         msleep(100);

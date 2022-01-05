@@ -15,8 +15,8 @@ class SimpleIPC : public QThread
 
 public:
     enum ipc_command {
-        WAITING_FOR_COMMAND = 0,
-        TOGGLE_MUTE
+        IPC_COMMAND_WAITING = 0,
+        IPC_COMMAND_TOGGLE_MUTE
     };
     Q_ENUM(ipc_command);
 

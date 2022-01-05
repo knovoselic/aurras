@@ -26,14 +26,14 @@ public:
     void updateSourceOutputCount();
 
 signals:
-    void source_added(quint32 idx);
-    void source_removed(quint32 idx);
-    void source_updated(quint32 idx);
+    void sourceAdded(quint32 idx);
+    void sourceRemoved(quint32 idx);
+    void sourceUpdated(quint32 idx);
 
-    void source_output_added(quint32 idx);
-    void source_output_removed(quint32 idx);
-    void source_output_updated(quint32 idx);
-    void active_source_output_count_changed(int new_count);
+    void sourceOutputAdded(quint32 idx);
+    void sourceOutputRemoved(quint32 idx);
+    void sourceOutputUpdated(quint32 idx);
+    void activeSourceOutputCountChanged(int new_count);
 
 private:
     static void pa_state_cb(pa_context *c, void *userdata);
@@ -58,7 +58,7 @@ private:
     pa_threaded_mainloop *mainloop;
     pa_mainloop_api *mainloop_api;
     pa_context *context;
-    int masterMute = 0;
+    int master_mute = 0;
 };
 
 
