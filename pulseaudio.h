@@ -23,6 +23,7 @@ public:
     ~PulseAudio();
 
     void setMuteForAllInputDevices(bool muted);
+    void updateSourceOutputCount();
 
 signals:
     void source_added(quint32 idx);
@@ -42,7 +43,6 @@ private:
     static void pa_mute_cb(pa_context *c, int success, void *userdata);
 
     void pa_update_source_list();
-    void pa_update_source_output_count();
     void pa_set_source_mute_to_master_mute_by_index(quint32 idx);
 
 #ifdef QT_DEBUG

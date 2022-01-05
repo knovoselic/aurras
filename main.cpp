@@ -15,6 +15,9 @@
 #endif
 
 bool mute = true;
+bool anyInputDeviceActive = false;
+PulseAudio *pa;
+KeyboardDriver *keyboard;
 
 void handle_signals(int signal) {
     Q_UNUSED(signal);
@@ -22,16 +25,20 @@ void handle_signals(int signal) {
     qApp->quit();
 }
 
-void handle_ipc_command(SimpleIPC::ipc_command command, PulseAudio &pa) {
+void handle_ipc_command(SimpleIPC::ipc_command command) {
     switch (command) {
     case SimpleIPC::ipc_command::TOGGLE_MUTE:
         mute = !mute;
-        pa.setMuteForAllInputDevices(mute);
+        pa->setMuteForAllInputDevices(mute);
         break;
     default:
         qWarning() << "Received unexpected IPC command:" << command;
         break;
     }
+}
+
+void handle_active_source_output_count_changed(int new_count) {
+    anyInputDeviceActive = new_count > 0;
 }
 
 int client_main(SimpleIPC &guard, QCoreApplication &app) {
@@ -69,18 +76,25 @@ int main(int argc, char *argv[])
         return client_main(ipc, app);
     }
 
-    PulseAudio pa;
-    KeyboardDriver keyboard;
-    QObject context;
+    pa = new PulseAudio();
+    keyboard = new KeyboardDriver();
 
-    QObject::connect(&ipc, &SimpleIPC::commandReceived, &context, [&](SimpleIPC::ipc_command command) { handle_ipc_command(command, pa); });
+    QObject::connect(&ipc, &SimpleIPC::commandReceived, handle_ipc_command);
+    QObject::connect(pa, &PulseAudio::active_source_output_count_changed, &handle_active_source_output_count_changed);
+
+    pa->updateSourceOutputCount();
 
     signal(SIGTERM, handle_signals);
     signal(SIGABRT, handle_signals);
     signal(SIGINT, handle_signals);
 
-    pa.setMuteForAllInputDevices(mute);
-    keyboard.set_hsv(80, 255, 255, 1000);
+    pa->setMuteForAllInputDevices(mute);
+    keyboard->set_hsv(80, 255, 255, 1000);
 
-    return app.exec();
+    int returnValue = app.exec();
+
+    delete  pa;
+    delete keyboard;
+
+    return returnValue;
 }
