@@ -14,7 +14,7 @@
 #else
 #define SHARED_MEMORY_KEY "Aurras driver shared memory"
 #endif
-#define STATE_UPDATE_INTERVAL 250
+#define STATE_UPDATE_INTERVAL 500
 
 bool mute = true;
 bool anyInputDeviceActive = false;
